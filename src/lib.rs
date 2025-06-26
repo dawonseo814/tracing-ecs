@@ -89,6 +89,8 @@ use std::io::Stderr;
 use std::io::Stdout;
 use std::io::Write;
 use std::sync::Mutex;
+use opentelemetry::trace::{SpanBuilder, TraceId};
+use rand::random;
 use tracing_core::dispatcher::SetGlobalDefaultError;
 use tracing_core::span::Attributes;
 use tracing_core::span::Id;
@@ -201,6 +203,16 @@ where
         let span = ctx.current_span().id().and_then(|id| {
             ctx.span_scope(id).map(|scope| {
                 scope.from_root().fold(String::new(), |mut spans, span| {
+                    let trace_id = span
+                        .extensions()
+                        .get::<SpanBuilder>()
+                        .and_then(|builder| builder.trace_id)
+                        .unwrap_or_else(|| {
+                            // fallback: 랜덤 trace_id 발급
+                            TraceId::from_bytes(random())
+                        });
+
+                    span_fields.insert("trace.id".into(), trace_id.to_string().into());
                     // Add span fields to the base object
                     if let Some(span_object) =
                         span.extensions().get::<HashMap<Cow<'static, str>, Value>>()
