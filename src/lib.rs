@@ -97,6 +97,7 @@ use tracing_core::Event;
 use tracing_core::Subscriber;
 use tracing_log::log_tracer::SetLoggerError;
 use tracing_log::LogTracer;
+use tracing_opentelemetry::OtelData;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::fmt::SubscriberBuilder;
 use tracing_subscriber::layer::Context;
@@ -201,14 +202,10 @@ where
         let span = ctx.current_span().id().and_then(|id| {
             ctx.span_scope(id).map(|scope| {
                 scope.from_root().fold(String::new(), |mut spans, span| {
-                    if let Some(trace_id) = span
-                        .extensions()
-                        .get::<SpanBuilder>()
-                        .and_then(|builder| builder.trace_id)
-                    {
+                    if let Some(trace_id) = span.extensions().get::<OtelData>().and_then(|data| data.builder.trace_id) {
                         span_fields.insert("trace.id".into(), trace_id.to_string().into());
                     }
-
+                    
                     // Add span fields to the base object
                     if let Some(span_object) =
                         span.extensions().get::<HashMap<Cow<'static, str>, Value>>()
